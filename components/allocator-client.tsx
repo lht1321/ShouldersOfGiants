@@ -1,0 +1,158 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, ArrowRight, CheckCircle2, Coins, Gauge, Users } from 'lucide-react';
+
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { SiteData } from '@/lib/types';
+
+type AllocationInput = {
+  ticker: string;
+  name: string;
+  weight: number;
+  price: number;
+  managerCount?: number;
+  estimatedPrice?: boolean;
+};
+
+type AllocationRow = AllocationInput & {
+  targetWeight: number;
+  shares: number;
+  targetDollars: number;
+  estimatedValue: number;
+  actualWeight: number;
+};
+
+function buildAllocation(budget: number, positions: AllocationInput[], exposure: number) {
+  const clean = positions.filter((item) => item.weight > 0 && item.price > 0);
+  const weightTotal = clean.reduce((sum, item) => sum + item.weight, 0);
+  const investableBudget = Math.max(0, budget) * exposure;
+  const rows: AllocationRow[] = clean.map((item) => {
+    const targetWeight = item.weight / weightTotal;
+    const targetDollars = investableBudget * targetWeight;
+    const shares = Math.floor(targetDollars / item.price);
+    return { ...item, targetWeight, targetDollars, shares, estimatedValue: shares * item.price, actualWeight: 0 };
+  });
+  let invested = rows.reduce((sum, item) => sum + item.estimatedValue, 0);
+  let cash = Math.max(0, budget - invested);
+  let guard = 0;
+  while (guard < 5000) {
+    const candidate = rows
+      .filter((item) => item.price <= cash && item.targetDollars > item.estimatedValue)
+      .sort((a, b) => (b.targetDollars - b.estimatedValue) - (a.targetDollars - a.estimatedValue))[0];
+    if (!candidate) break;
+    candidate.shares += 1;
+    candidate.estimatedValue += candidate.price;
+    invested += candidate.price;
+    cash -= candidate.price;
+    guard += 1;
+  }
+  rows.forEach((item) => { item.actualWeight = budget > 0 ? item.estimatedValue / budget : 0; });
+  return { rows: rows.filter((item) => item.shares > 0), invested, cash, investableBudget };
+}
+
+const money = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+
+type WebMCPContext = {
+  registerTool: (tool: {
+    name: string;
+    title: string;
+    description: string;
+    inputSchema: object;
+    annotations: { readOnlyHint: boolean; untrustedContentHint: boolean };
+    execute: (input: unknown) => Promise<unknown>;
+  }, options: { signal: AbortSignal }) => void | Promise<void>;
+};
+
+export function AllocatorClient({ data }: { data: SiteData }) {
+  const [budget, setBudget] = useState(100_000);
+  const [sourceId, setSourceId] = useState('regime');
+  const selectedInvestor = data.investors.find((item) => item.id === sourceId);
+  const isRegime = sourceId === 'regime';
+  const positions = useMemo<AllocationInput[]>(() => {
+    if (isRegime) return data.consensus.map((item) => ({ ticker: item.ticker, name: item.ticker, weight: item.weight, price: item.price, managerCount: item.managerCount }));
+    return (selectedInvestor?.calculator || []).map((item) => ({ ticker: item.ticker, name: item.name, weight: item.weight || 0, price: item.price, estimatedPrice: item.estimatedPrice }));
+  }, [data.consensus, isRegime, selectedInvestor]);
+  const exposure = isRegime ? data.regime.equityExposure : 1;
+  const allocation = useMemo(() => buildAllocation(budget, positions, exposure), [budget, positions, exposure]);
+
+  useEffect(() => {
+    const context = (document as unknown as { modelContext?: WebMCPContext }).modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    try {
+      void Promise.resolve(context.registerTool({
+        name: 'calculate_investment_allocation',
+        title: '예산별 매수 수량 계산',
+        description: '달러 예산과 현재 레짐 컨센서스 또는 투자자 ID를 사용해 화면의 매수 수량표를 계산합니다.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            budgetUsd: { type: 'number', minimum: 100 },
+            source: { type: 'string', description: 'regime 또는 투자자 ID' },
+          },
+          required: ['budgetUsd', 'source'],
+          additionalProperties: false,
+        },
+        annotations: { readOnlyHint: false, untrustedContentHint: false },
+        async execute(input) {
+          const value = input as { budgetUsd?: unknown; source?: unknown };
+          if (typeof value.budgetUsd !== 'number' || !Number.isFinite(value.budgetUsd) || value.budgetUsd < 100) throw new Error('budgetUsd는 100 이상의 숫자여야 합니다.');
+          if (typeof value.source !== 'string') throw new Error('source가 필요합니다.');
+          const sourceInvestor = data.investors.find((item) => item.id === value.source);
+          if (value.source !== 'regime' && !sourceInvestor) throw new Error('알 수 없는 투자자 ID입니다.');
+          const webPositions: AllocationInput[] = value.source === 'regime'
+            ? data.consensus.map((item) => ({ ticker: item.ticker, name: item.ticker, weight: item.weight, price: item.price, managerCount: item.managerCount }))
+            : (sourceInvestor?.calculator || []).map((item) => ({ ticker: item.ticker, name: item.name, weight: item.weight || 0, price: item.price, estimatedPrice: item.estimatedPrice }));
+          const result = buildAllocation(value.budgetUsd, webPositions, value.source === 'regime' ? data.regime.equityExposure : 1);
+          setBudget(value.budgetUsd);
+          setSourceId(value.source);
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          return { investedUsd: Math.round(result.invested), cashUsd: Math.round(result.cash), orders: result.rows.map((row) => ({ ticker: row.ticker, shares: row.shares })) };
+        },
+      }, { signal: lifecycle.signal })).catch(() => undefined);
+    } catch {
+      return;
+    }
+    return () => lifecycle.abort();
+  }, [data]);
+
+  return (
+    <div className="page-shell allocator-shell">
+      <header className="page-heading allocator-heading">
+        <div><p className="eyebrow">BUDGET ALLOCATOR</p><h1>예산을 실제 수량으로 바꾸기</h1><p>최신 종가와 목표 비중을 이용해 정수 주식 수량, 예상 투자금, 잔여 현금을 계산합니다.</p></div>
+        <div className="regime-stamp"><span className="pulse" /><div><small>현재 시장 레짐</small><strong>{data.regime.label}</strong></div><em>주식 노출 {percent(data.regime.equityExposure)}</em></div>
+      </header>
+
+      <section className="allocator-workbench">
+        <div className="allocator-controls-panel">
+          <div className="control-block"><label htmlFor="budget">전체 예산 · USD</label><div className="money-input"><span>$</span><Input id="budget" type="number" min={100} step={1000} value={budget} onChange={(event) => setBudget(Math.max(0, Number(event.target.value)))} /></div><small>미국 상장 종목 기준이며 세금·환전비용은 포함하지 않습니다.</small></div>
+          <div className="control-block"><label htmlFor="portfolio-source">포트폴리오 기준</label><Select value={sourceId} onValueChange={(value) => setSourceId(String(value))}><SelectTrigger id="portfolio-source" className="allocation-select"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectLabel>레짐 모델</SelectLabel><SelectItem value="regime">현재 레짐 컨센서스 · {data.regime.label}</SelectItem></SelectGroup><SelectGroup><SelectLabel>거장 포트폴리오 복제</SelectLabel>{data.investors.filter((item) => item.calculator.length).map((item) => <SelectItem key={item.id} value={item.id}>{item.representative} · {item.manager}</SelectItem>)}</SelectGroup></SelectContent></Select><small>{isRegime ? '복수의 퀄리티·가치 운용사가 동시에 보유한 종목을 결합합니다.' : `${selectedInvestor?.portfolioDate} 13F 상위 매핑 종목을 비중대로 복제합니다.`}</small></div>
+          <div className="allocation-flow"><span>예산</span><ArrowRight size={16} /><span>{isRegime ? `${data.regime.label} 노출 ${percent(exposure)}` : selectedInvestor?.styleLabel}</span><ArrowRight size={16} /><strong>{allocation.rows.length}개 주문</strong></div>
+        </div>
+
+        <div className="allocation-summary">
+          <div><Coins size={18} /><span>예상 투자금</span><strong>{money(allocation.invested)}</strong></div>
+          <div><Gauge size={18} /><span>잔여 현금</span><strong>{money(allocation.cash)}</strong></div>
+          <div><CheckCircle2 size={18} /><span>투자 비율</span><strong>{budget > 0 ? percent(allocation.invested / budget) : '—'}</strong></div>
+          <div><Users size={18} /><span>신호 기준일</span><strong>{isRegime ? data.regime.priceDate : selectedInvestor?.calculator[0]?.priceDate || '—'}</strong></div>
+        </div>
+      </section>
+
+      <section className="allocation-table panel">
+        <div className="section-heading"><div><p>ORDER BLUEPRINT</p><h2>{isRegime ? `${data.regime.label} 레짐 추천 포트폴리오` : `${selectedInvestor?.representative} 복제 포트폴리오`}</h2></div><span>{money(budget)}</span></div>
+        {allocation.rows.length ? <Table><TableHeader><TableRow><TableHead>종목</TableHead><TableHead>근거</TableHead><TableHead className="text-right">목표 비중</TableHead><TableHead className="text-right">기준 가격</TableHead><TableHead className="text-right">매수 수량</TableHead><TableHead className="text-right">예상 금액</TableHead></TableRow></TableHeader><TableBody>{allocation.rows.map((row) => <TableRow key={row.ticker}><TableCell><strong className="ticker-cell">{row.ticker}</strong><small>{row.name !== row.ticker ? row.name : ''}</small></TableCell><TableCell className="text-muted-foreground">{isRegime ? `${row.managerCount}개 운용사 동시 보유` : row.estimatedPrice ? '보고가격 추정' : '최근 종가'}</TableCell><TableCell className="text-right font-mono">{percent(row.targetWeight * exposure)}</TableCell><TableCell className="text-right font-mono">${row.price.toFixed(2)}</TableCell><TableCell className="text-right"><strong className="share-count">{row.shares.toLocaleString('en-US')}주</strong></TableCell><TableCell className="text-right font-mono">{money(row.estimatedValue)}</TableCell></TableRow>)}</TableBody></Table> : <div className="no-data">이 예산으로 매수할 수 있는 종목이 없습니다. 예산을 늘리거나 다른 포트폴리오를 선택하세요.</div>}
+      </section>
+
+      <section className="regime-explainer">
+        <div><p className="section-kicker">REGIME LOGIC</p><h2>현재 판단: {data.regime.label}</h2><p>{data.regime.rationale}</p><small>가격 기준 {data.regime.priceDate} · 13F 기준 {data.regime.reportDate}</small></div>
+        <div className="regime-rules">{data.regime.rules.map((rule) => <article className={rule.label === data.regime.label ? 'active' : ''} key={rule.label}><span>{rule.label}</span><strong>{percent(rule.exposure)}</strong><p>{rule.description}</p></article>)}</div>
+      </section>
+
+      <aside className="risk-callout allocator-risk"><AlertCircle size={19} /><div><strong>주문 전에 확인하세요</strong><p>계산값은 모델 비중을 정수 주식으로 근사한 연구용 주문안입니다. 실시간 호가, 환율, 세금, 거래비용, 기존 보유 수량을 반영하지 않았으며 자동 주문을 전송하지 않습니다.</p></div></aside>
+    </div>
+  );
+}
