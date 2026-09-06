@@ -10,6 +10,7 @@
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint app components --ignore-pattern components/ui/**",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "verify": "node scripts/verify-site.mjs",
     "format": "oxfmt"
   },

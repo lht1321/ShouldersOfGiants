@@ -6,55 +6,12 @@ import { AlertCircle, ArrowRight, CheckCircle2, Coins, Gauge, Users } from 'luci
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { buildAllocation, type AllocationInput } from '@/lib/allocation';
 import type { SiteData } from '@/lib/types';
-
-type AllocationInput = {
-  ticker: string;
-  name: string;
-  weight: number;
-  price: number;
-  managerCount?: number;
-  estimatedPrice?: boolean;
-};
-
-type AllocationRow = AllocationInput & {
-  targetWeight: number;
-  shares: number;
-  targetDollars: number;
-  estimatedValue: number;
-  actualWeight: number;
-};
-
-function buildAllocation(budget: number, positions: AllocationInput[], exposure: number) {
-  const clean = positions.filter((item) => item.weight > 0 && item.price > 0);
-  const weightTotal = clean.reduce((sum, item) => sum + item.weight, 0);
-  const investableBudget = Math.max(0, budget) * exposure;
-  const rows: AllocationRow[] = clean.map((item) => {
-    const targetWeight = item.weight / weightTotal;
-    const targetDollars = investableBudget * targetWeight;
-    const shares = Math.floor(targetDollars / item.price);
-    return { ...item, targetWeight, targetDollars, shares, estimatedValue: shares * item.price, actualWeight: 0 };
-  });
-  let invested = rows.reduce((sum, item) => sum + item.estimatedValue, 0);
-  let cash = Math.max(0, budget - invested);
-  let guard = 0;
-  while (guard < 5000) {
-    const candidate = rows
-      .filter((item) => item.price <= cash && item.targetDollars > item.estimatedValue)
-      .sort((a, b) => (b.targetDollars - b.estimatedValue) - (a.targetDollars - a.estimatedValue))[0];
-    if (!candidate) break;
-    candidate.shares += 1;
-    candidate.estimatedValue += candidate.price;
-    invested += candidate.price;
-    cash -= candidate.price;
-    guard += 1;
-  }
-  rows.forEach((item) => { item.actualWeight = budget > 0 ? item.estimatedValue / budget : 0; });
-  return { rows: rows.filter((item) => item.shares > 0), invested, cash, investableBudget };
-}
 
 const money = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+const budgetPresets = [10_000, 50_000, 100_000, 500_000];
 
 type WebMCPContext = {
   registerTool: (tool: {
@@ -129,7 +86,7 @@ export function AllocatorClient({ data }: { data: SiteData }) {
 
       <section className="allocator-workbench">
         <div className="allocator-controls-panel">
-          <div className="control-block"><label htmlFor="budget">전체 예산 · USD</label><div className="money-input"><span>$</span><Input id="budget" type="number" min={100} step={1000} value={budget} onChange={(event) => setBudget(Math.max(0, Number(event.target.value)))} /></div><small>미국 상장 종목 기준이며 세금·환전비용은 포함하지 않습니다.</small></div>
+          <div className="control-block"><label htmlFor="budget">전체 예산 · USD</label><div className="money-input"><span>$</span><Input id="budget" type="number" min={100} step={1000} value={budget} onChange={(event) => setBudget(Math.max(0, Number(event.target.value)))} /></div><div className="budget-presets" aria-label="예산 빠른 선택">{budgetPresets.map((preset) => <button type="button" aria-pressed={budget === preset} onClick={() => setBudget(preset)} key={preset}>{preset >= 1000 ? `$${preset / 1000}K` : money(preset)}</button>)}</div><small>미국 상장 종목 기준이며 세금·환전비용은 포함하지 않습니다.</small></div>
           <div className="control-block"><label htmlFor="portfolio-source">포트폴리오 기준</label><Select value={sourceId} onValueChange={(value) => setSourceId(String(value))}><SelectTrigger id="portfolio-source" className="allocation-select"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectLabel>레짐 모델</SelectLabel><SelectItem value="regime">현재 레짐 컨센서스 · {data.regime.label}</SelectItem></SelectGroup><SelectGroup><SelectLabel>거장 포트폴리오 복제</SelectLabel>{data.investors.filter((item) => item.calculator.length).map((item) => <SelectItem key={item.id} value={item.id}>{item.representative} · {item.manager}</SelectItem>)}</SelectGroup></SelectContent></Select><small>{isRegime ? '복수의 퀄리티·가치 운용사가 동시에 보유한 종목을 결합합니다.' : `${selectedInvestor?.portfolioDate} 13F 상위 매핑 종목을 비중대로 복제합니다.`}</small></div>
           <div className="allocation-flow"><span>예산</span><ArrowRight size={16} /><span>{isRegime ? `${data.regime.label} 노출 ${percent(exposure)}` : selectedInvestor?.styleLabel}</span><ArrowRight size={16} /><strong>{allocation.rows.length}개 주문</strong></div>
         </div>
@@ -140,6 +97,11 @@ export function AllocatorClient({ data }: { data: SiteData }) {
           <div><CheckCircle2 size={18} /><span>투자 비율</span><strong>{budget > 0 ? percent(allocation.invested / budget) : '—'}</strong></div>
           <div><Users size={18} /><span>신호 기준일</span><strong>{isRegime ? data.regime.priceDate : selectedInvestor?.calculator[0]?.priceDate || '—'}</strong></div>
         </div>
+      </section>
+
+      <section className="allocation-chart panel" aria-label="추천 포트폴리오 예산 배분 차트">
+        <div className="section-heading"><div><p>ALLOCATION MAP</p><h2>예산이 어디에 배분되는가</h2></div><span>실제 매수금 기준</span></div>
+        {allocation.rows.length ? <div className="allocation-bars">{allocation.rows.slice(0, 10).map((row) => <div key={row.ticker}><div><strong>{row.ticker}</strong><span>{money(row.estimatedValue)} · {percent(row.actualWeight)}</span></div><span className="allocation-track"><i style={{ width: `${Math.min(100, row.actualWeight * 100)}%` }} /></span></div>)}<div className="cash-row"><div><strong>현금</strong><span>{money(allocation.cash)} · {budget > 0 ? percent(allocation.cash / budget) : '—'}</span></div><span className="allocation-track"><i style={{ width: `${budget > 0 ? Math.min(100, allocation.cash / budget * 100) : 0}%` }} /></span></div></div> : <div className="no-data">현재 예산으로 표시할 배분이 없습니다.</div>}
       </section>
 
       <section className="allocation-table panel">

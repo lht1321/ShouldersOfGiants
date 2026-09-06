@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, CalendarDays, Layers3 } from 'lucide-react';
 
 import { SiteHeader } from '@/components/site-header';
 import { InvestorPortrait } from '@/components/investor-portrait';
+import { InvestorDetailCharts } from '@/components/investor-detail-charts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getInvestor, siteData } from '@/lib/site-data';
 
@@ -48,6 +49,8 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
           <div><span>회전율</span><strong>{percent(investor.metrics.turnover, 1)}</strong><small>연평균</small></div>
           <div><span>데이터 커버리지</span><strong>{percent(investor.metrics.mappingCoverage, 1)}</strong><small>신뢰도 {investor.metrics.confidence || '—'}</small></div>
         </section>
+
+        <InvestorDetailCharts investor={investor} />
 
         <div className="detail-columns">
           <section className="article-body">

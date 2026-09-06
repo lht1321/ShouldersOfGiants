@@ -61,6 +61,19 @@ const dashboardSource = readFileSync(join(root, 'components', 'performance-dashb
 check(dashboardSource.includes("investor: { label: '13F 복제', color: '#24527a' }"), '수익률 차트에서 투자자와 시장이 색으로 구분되어야 합니다.');
 check(dashboardSource.includes("'#2f6f62'"), '포트폴리오 차트에 절제된 보조색이 필요합니다.');
 
+const allocatorSource = readFileSync(join(root, 'components', 'allocator-client.tsx'), 'utf8');
+for (const phrase of ['budget-presets', 'allocation-chart', 'buildAllocation']) {
+  check(allocatorSource.includes(phrase), `예산 배분 도구 기능 누락: ${phrase}`);
+}
+
+const changesSource = readFileSync(join(root, 'components', 'changes-explorer.tsx'), 'utf8');
+for (const phrase of ['change-filter', 'change-search', 'change-impact-chart']) {
+  check(changesSource.includes(phrase), `포지션 변화 도구 기능 누락: ${phrase}`);
+}
+
+const detailSource = readFileSync(join(root, 'app', 'investors', '[id]', 'page.tsx'), 'utf8');
+check(detailSource.includes('InvestorDetailCharts'), '투자자 상세 페이지에 수익률·포트폴리오 차트가 필요합니다.');
+
 if (failures.length) {
   throw new Error(`사이트 검증 실패 (${failures.length})\n- ${failures.join('\n- ')}`);
 }
