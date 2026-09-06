@@ -53,6 +53,14 @@ for (const phrase of ['이름 또는 운용사 검색', '연복리 수익률 높
   check(archiveSource.includes(phrase), `투자자 검색·정렬 옵션 누락: ${phrase}`);
 }
 
+const globalStyles = readFileSync(join(root, 'app', 'globals.css'), 'utf8');
+for (const token of ['--accent-blue:', '--accent-blue-soft:', '--positive:', '--negative:', '--warning-soft:']) {
+  check(globalStyles.includes(token), `절제된 색상 토큰 누락: ${token}`);
+}
+const dashboardSource = readFileSync(join(root, 'components', 'performance-dashboard.tsx'), 'utf8');
+check(dashboardSource.includes("investor: { label: '13F 복제', color: '#24527a' }"), '수익률 차트에서 투자자와 시장이 색으로 구분되어야 합니다.');
+check(dashboardSource.includes("'#2f6f62'"), '포트폴리오 차트에 절제된 보조색이 필요합니다.');
+
 if (failures.length) {
   throw new Error(`사이트 검증 실패 (${failures.length})\n- ${failures.join('\n- ')}`);
 }
