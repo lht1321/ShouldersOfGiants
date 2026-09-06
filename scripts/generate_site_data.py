@@ -72,6 +72,17 @@ STYLE_META = {
     },
 }
 
+PORTRAIT_SUBJECTS = {
+    "traditional_value": "Warren Buffett",
+    "activist": "Bill Ackman",
+    "value_macro_hybrid": "Michael Burry",
+    "quality_compounder": "Terry Smith",
+    "deep_distressed": "Howard Marks",
+    "fundamental_growth": "Chase Coleman",
+    "global_macro": "Stanley Druckenmiller",
+    "event_driven_macro": "Paul Singer",
+}
+
 
 def number(value: object, digits: int = 6) -> float | None:
     try:
@@ -254,6 +265,9 @@ def build_site_data(refresh_prices: bool) -> dict[str, object]:
         lineage = str(row["lineage"])
         style = str(row["style_group"])
         style_meta = STYLE_META[style]
+        representative = str(row["representative"])
+        portrait_subject = PORTRAIT_SUBJECTS.get(style)
+        illustration = style_meta["image"] if portrait_subject and portrait_subject in representative else None
         report = latest_reports.get(lineage, pd.DataFrame())
         dates = report_dates.get(lineage, [])
         latest_date = pd.Timestamp(dates[-1]).strftime("%Y-%m-%d") if dates else None
@@ -370,10 +384,11 @@ def build_site_data(refresh_prices: bool) -> dict[str, object]:
             {
                 "id": lineage,
                 "manager": str(row["manager_name"]),
-                "representative": str(row["representative"]),
+                "representative": representative,
                 "style": style,
                 "styleLabel": str(row["style_label_ko"]),
-                "illustration": style_meta["image"],
+                "illustration": illustration,
+                "illustrationSubject": portrait_subject if illustration else None,
                 "characteristics": str(row["characteristics_ko"]),
                 "thesis": style_meta["thesis"],
                 "principles": style_meta["principles"],

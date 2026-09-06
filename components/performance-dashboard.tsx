@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, BarChart3, ShieldCheck, Sparkles } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { SiteData } from '@/lib/types';
+import { InvestorPortrait } from '@/components/investor-portrait';
 
 const portfolioColors = ['#181818', '#383838', '#565656', '#707070', '#898989', '#a2a2a2', '#bbbbbb', '#d2d2d2', '#e4e4e4'];
 
@@ -68,7 +68,7 @@ export function PerformanceDashboard({ data }: { data: SiteData }) {
       </section>
 
       <section className="investor-strip" aria-label="선택한 투자자">
-        <Image src={investor.illustration} alt={`${investor.styleLabel} 스타일 편집 일러스트`} width={150} height={150} priority />
+        <InvestorPortrait name={investor.representative} styleLabel={investor.styleLabel} src={investor.illustration} subject={investor.illustrationSubject} width={150} height={150} priority />
         <div className="investor-copy">
           <p>{investor.manager.toUpperCase()}</p>
           <h2>{investor.representative}</h2>

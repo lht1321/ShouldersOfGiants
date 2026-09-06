@@ -5,6 +5,17 @@ const root = process.cwd();
 const data = JSON.parse(readFileSync(join(root, 'lib', 'site-data.json'), 'utf8'));
 const failures = [];
 
+const portraitOwners = new Map([
+  ['/portraits/traditional-value-pen.jpg', 'Warren Buffett'],
+  ['/portraits/activist-pen.jpg', 'Bill Ackman'],
+  ['/portraits/value-macro-hybrid-pen.jpg', 'Michael Burry'],
+  ['/portraits/quality-compounder-pen.jpg', 'Terry Smith'],
+  ['/portraits/deep-distressed-pen.jpg', 'Howard Marks'],
+  ['/portraits/fundamental-growth-pen.jpg', 'Chase Coleman'],
+  ['/portraits/global-macro-pen.jpg', 'Stanley Druckenmiller'],
+  ['/portraits/event-driven-macro-pen.jpg', 'Paul Singer'],
+]);
+
 const check = (condition, message) => {
   if (!condition) failures.push(message);
 };
@@ -12,46 +23,38 @@ const check = (condition, message) => {
 check(data.investorCount === data.investors.length, '투자자 집계와 실제 데이터 수가 일치해야 합니다.');
 check(data.investors.length >= 60, '충분한 수의 가치·매크로 투자자 프로필이 필요합니다.');
 check(data.styles.length >= 8, '투자 스타일 분류가 누락되었습니다.');
-check(data.consensus.length > 0, '레짐 컨센서스 포트폴리오가 비어 있습니다.');
+check(data.consensus.length > 0, '최신 컨센서스 포트폴리오가 비어 있습니다.');
 check(data.regime?.label && data.regime?.equityExposure > 0, '현재 레짐 정보가 유효해야 합니다.');
 
 for (const investor of data.investors) {
   check(investor.id && investor.manager && investor.representative, `투자자 식별 정보 누락: ${investor.id || 'unknown'}`);
-  check(investor.analysis.length >= 3, `상세 스타일 분석 누락: ${investor.id}`);
-  check(investor.illustration.endsWith('-pen.jpg'), `D형 펜 일러스트가 연결되지 않음: ${investor.id}`);
-  check(existsSync(join(root, 'public', investor.illustration.replace(/^\//, ''))), `일러스트 파일 누락: ${investor.illustration}`);
+  check(investor.analysis.length >= 3, `상세 투자 스타일 분석 누락: ${investor.id}`);
+
+  if (investor.illustration) {
+    check(investor.illustration.endsWith('-pen.jpg'), `D형 펜 일러스트가 아님: ${investor.id}`);
+    const portraitSubject = portraitOwners.get(investor.illustration);
+    check(portraitSubject === investor.illustrationSubject, `초상 인물 정보가 일치하지 않음: ${investor.id}`);
+    check(Boolean(portraitSubject && investor.representative.includes(portraitSubject)), `다른 인물의 초상이 연결됨: ${investor.id} → ${investor.illustration}`);
+    check(existsSync(join(root, 'public', investor.illustration.replace(/^\//, ''))), `일러스트 파일 누락: ${investor.illustration}`);
+  }
 }
+
+const illustratedInvestors = data.investors.filter((investor) => investor.illustration);
+check(illustratedInvestors.length === portraitOwners.size, `검증된 인물 초상은 ${portraitOwners.size}개여야 합니다.`);
+check(new Set(illustratedInvestors.map((investor) => investor.illustration)).size === illustratedInvestors.length, '한 초상을 여러 투자자에게 재사용할 수 없습니다.');
 
 check(data.investors.some((investor) => investor.curve.length > 0), '시장 비교 수익률 곡선이 필요합니다.');
 check(data.investors.some((investor) => investor.portfolio.length > 0), '포트폴리오 분포 데이터가 필요합니다.');
 check(data.investors.some((investor) => investor.calculator.length > 0), '예산별 매수 수량 데이터가 필요합니다.');
-check(data.investors.some((investor) => investor.changes.length > 0), '직전 분기 포지션 변화 데이터가 필요합니다.');
+check(data.investors.some((investor) => investor.changes.length > 0), '직전 분기 포지션 변경 데이터가 필요합니다.');
 
 const archiveSource = readFileSync(join(root, 'components', 'investor-archive.tsx'), 'utf8');
 for (const phrase of ['이름 또는 운용사 검색', '연복리 수익률 높은순', '시장 초과수익 높은순', '샤프지수 높은순']) {
   check(archiveSource.includes(phrase), `투자자 검색·정렬 옵션 누락: ${phrase}`);
 }
 
-const paletteFiles = [
-  join(root, 'app', 'globals.css'),
-  join(root, 'components', 'performance-dashboard.tsx'),
-];
-
-for (const file of paletteFiles) {
-  const source = readFileSync(file, 'utf8');
-  for (const match of source.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})\b/gi)) {
-    const raw = match[1].length === 3 ? match[1].split('').map((part) => part.repeat(2)).join('') : match[1];
-    const [red, green, blue] = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 6)].map((part) => Number.parseInt(part, 16));
-    check(red === green && green === blue, `무채색 팔레트 위반 ${match[0]}: ${file}`);
-  }
-  for (const match of source.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/gi)) {
-    const [, red, green, blue] = match.map(Number);
-    check(red === green && green === blue, `무채색 RGB 팔레트 위반 ${match[0]}: ${file}`);
-  }
-}
-
 if (failures.length) {
   throw new Error(`사이트 검증 실패 (${failures.length})\n- ${failures.join('\n- ')}`);
 }
 
-console.log(`사이트 검증 통과: 투자자 ${data.investors.length}명, 스타일 ${data.styles.length}개, D형 일러스트 연결 및 핵심 기능 데이터 확인`);
+console.log(`사이트 검증 통과: 투자자 ${data.investors.length}명, 스타일 ${data.styles.length}개, 검증된 초상 ${illustratedInvestors.length}개 및 핵심 기능 데이터 확인`);

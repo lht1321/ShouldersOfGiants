@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowUpRight, Search } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { SiteData } from '@/lib/types';
+import { InvestorPortrait } from '@/components/investor-portrait';
 
 const percent = (value: number | null) => value == null ? '—' : `${(value * 100).toFixed(1)}%`;
 
@@ -92,7 +92,7 @@ export function InvestorArchive({ data }: { data: SiteData }) {
         {filtered.map((investor) => (
           <Link href={`/investors/${investor.id}`} className="investor-card" key={investor.id}>
             <div className="investor-card-art">
-              <Image src={investor.illustration} alt={`${investor.styleLabel} 스타일 일러스트`} width={460} height={300} />
+              <InvestorPortrait name={investor.representative} styleLabel={investor.styleLabel} src={investor.illustration} subject={investor.illustrationSubject} width={460} height={300} />
               <span>{investor.styleLabel}</span>
             </div>
             <div className="investor-card-body">

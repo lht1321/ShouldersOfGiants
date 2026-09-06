@@ -1,9 +1,9 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, CalendarDays, Layers3 } from 'lucide-react';
 
 import { SiteHeader } from '@/components/site-header';
+import { InvestorPortrait } from '@/components/investor-portrait';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getInvestor, siteData } from '@/lib/site-data';
 
@@ -31,7 +31,7 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
       <article className="detail-shell">
         <Link href="/investors" className="back-link"><ArrowLeft size={15} /> 투자자 아카이브</Link>
         <header className="profile-hero">
-          <div className="profile-art"><Image src={investor.illustration} alt={`${investor.styleLabel} 스타일 편집 일러스트`} width={520} height={520} priority /><span>스타일 일러스트</span></div>
+          <div className={`profile-art ${investor.illustration ? 'has-portrait' : ''}`}><InvestorPortrait name={investor.representative} styleLabel={investor.styleLabel} src={investor.illustration} subject={investor.illustrationSubject} width={520} height={520} priority /><span>{investor.illustrationSubject ? `${investor.illustrationSubject} 일러스트` : '이름 기반 프로필'}</span></div>
           <div className="profile-copy">
             <p className="eyebrow">{investor.styleLabel.toUpperCase()}</p>
             <h1>{investor.representative}</h1>

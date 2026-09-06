@@ -37,7 +37,8 @@ export type Investor = {
   representative: string;
   style: string;
   styleLabel: string;
-  illustration: string;
+  illustration: string | null;
+  illustrationSubject: string | null;
   characteristics: string;
   thesis: string;
   principles: string[];
