@@ -70,7 +70,7 @@ export function InvestorArchive({ data }: { data: SiteData }) {
       <header className="page-heading archive-heading">
         <div><p className="eyebrow">INVESTOR ARCHIVE · {data.investorCount}</p><h1>거장 투자자 아카이브</h1><p>공개 13F에 남은 선택을 바탕으로 철학, 행동 패턴, 성과와 위험을 함께 읽습니다.</p></div>
         <div className="archive-controls">
-          <label className="search-field"><Search size={17} /><span className="sr-only">투자자 검색</span><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름 또는 운용사 검색" /></label>
+          <label className="search-field" htmlFor="investor-search"><Search size={17} /><span className="sr-only">투자자 검색</span><Input id="investor-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름 또는 운용사 검색" /></label>
           <Select value={style} onValueChange={(value) => setStyle(String(value))}>
             <SelectTrigger className="archive-select" aria-label="투자 스타일 필터"><SelectValue /></SelectTrigger>
             <SelectContent>

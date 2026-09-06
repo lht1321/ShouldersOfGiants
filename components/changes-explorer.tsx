@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CircleMinus, CirclePlus, SearchCheck } from 'lucide-react';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,7 +20,7 @@ export function ChangesExplorer({ data }: { data: SiteData }) {
   const candidates = data.investors.filter((item) => item.changes.length);
   const [selectedId, setSelectedId] = useState(candidates.find((item) => item.id === 'berkshire')?.id || candidates[0]?.id);
   const investor = candidates.find((item) => item.id === selectedId) || candidates[0];
-  const counts = useMemo(() => Object.fromEntries(['신규', '확대', '축소', '전량매도'].map((action) => [action, investor.changes.filter((item) => item.action === action).length])), [investor]);
+  const counts = Object.fromEntries(['신규', '확대', '축소', '전량매도'].map((action) => [action, investor.changes.filter((item) => item.action === action).length]));
   const notable = investor.changes.filter((item) => item.action !== '유지').slice(0, 4);
 
   return (

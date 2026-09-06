@@ -23,11 +23,11 @@ import {
 } from '@/components/ui/select';
 import type { SiteData } from '@/lib/types';
 
-const portfolioColors = ['#d9a441', '#3c8f88', '#d36a52', '#607d9d', '#8c77a8', '#4f7b68', '#b08051', '#668591', '#304657'];
+const portfolioColors = ['#181818', '#383838', '#565656', '#707070', '#898989', '#a2a2a2', '#bbbbbb', '#d2d2d2', '#e4e4e4'];
 
 const performanceConfig = {
-  investor: { label: '13F 복제', color: '#d9a441' },
-  market: { label: 'SPY', color: '#6f91aa' },
+  investor: { label: '13F 복제', color: '#181818' },
+  market: { label: 'SPY', color: '#888888' },
 } satisfies ChartConfig;
 
 const percent = (value: number | null, digits = 2) => value == null ? '—' : `${(value * 100).toFixed(digits)}%`;
