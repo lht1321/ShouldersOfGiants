@@ -74,6 +74,11 @@ for (const phrase of ['change-filter', 'change-search', 'change-impact-chart']) 
 const detailSource = readFileSync(join(root, 'app', 'investors', '[id]', 'page.tsx'), 'utf8');
 check(detailSource.includes('InvestorDetailCharts'), '투자자 상세 페이지에 수익률·포트폴리오 차트가 필요합니다.');
 
+const headerSource = readFileSync(join(root, 'components', 'site-header.tsx'), 'utf8');
+check(headerSource.includes('data-native-navigation'), '배포 환경에서 안정적인 전체 페이지 메뉴 이동이 필요합니다.');
+check(headerSource.includes('window.location.assign'), '상단 메뉴 클릭은 전체 페이지 이동으로 처리되어야 합니다.');
+check(headerSource.includes('prefetch={false}'), '상단 메뉴의 RSC 사전 요청을 비활성화해야 합니다.');
+
 if (failures.length) {
   throw new Error(`사이트 검증 실패 (${failures.length})\n- ${failures.join('\n- ')}`);
 }
