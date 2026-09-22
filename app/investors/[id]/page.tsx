@@ -6,7 +6,7 @@ import { SiteHeader } from '@/components/site-header';
 import { InvestorPortrait } from '@/components/investor-portrait';
 import { InvestorDetailCharts } from '@/components/investor-detail-charts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getInvestor, siteData } from '@/lib/site-data';
+import { getInvestor, investorDirectory, siteData } from '@/lib/site-data';
 
 export function generateStaticParams() {
   return siteData.investors.map((investor) => ({ id: investor.id }));
@@ -28,7 +28,7 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
 
   return (
     <main className="min-h-screen">
-      <SiteHeader />
+      <SiteHeader investors={investorDirectory} />
       <article className="detail-shell">
         <Link href="/investors" className="back-link"><ArrowLeft size={15} /> 투자자 아카이브</Link>
         <header className="profile-hero">

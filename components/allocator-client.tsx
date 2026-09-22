@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { buildAllocation, type AllocationInput } from '@/lib/allocation';
+import { parseBudgetInput } from '@/lib/budget-input';
 import type { SiteData } from '@/lib/types';
 
-const money = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const money = (value: number) => value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 const budgetPresets = [10_000, 50_000, 100_000, 500_000];
 
@@ -26,6 +27,8 @@ type WebMCPContext = {
 
 export function AllocatorClient({ data }: { data: SiteData }) {
   const [budget, setBudget] = useState(100_000);
+  const [budgetDraft, setBudgetDraft] = useState('100000');
+  const [budgetError, setBudgetError] = useState('');
   const [sourceId, setSourceId] = useState('regime');
   const selectedInvestor = data.investors.find((item) => item.id === sourceId);
   const isRegime = sourceId === 'regime';
@@ -66,6 +69,8 @@ export function AllocatorClient({ data }: { data: SiteData }) {
             : (sourceInvestor?.calculator || []).map((item) => ({ ticker: item.ticker, name: item.name, weight: item.weight || 0, price: item.price, estimatedPrice: item.estimatedPrice }));
           const result = buildAllocation(value.budgetUsd, webPositions, value.source === 'regime' ? data.regime.equityExposure : 1);
           setBudget(value.budgetUsd);
+          setBudgetDraft(String(value.budgetUsd));
+          setBudgetError('');
           setSourceId(value.source);
           await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
           return { investedUsd: Math.round(result.invested), cashUsd: Math.round(result.cash), orders: result.rows.map((row) => ({ ticker: row.ticker, shares: row.shares })) };
@@ -86,7 +91,7 @@ export function AllocatorClient({ data }: { data: SiteData }) {
 
       <section className="allocator-workbench">
         <div className="allocator-controls-panel">
-          <div className="control-block"><label htmlFor="budget">전체 예산 · USD</label><div className="money-input"><span>$</span><Input id="budget" type="number" min={100} step={1000} value={budget} onChange={(event) => setBudget(Math.max(0, Number(event.target.value)))} /></div><div className="budget-presets" aria-label="예산 빠른 선택">{budgetPresets.map((preset) => <button type="button" aria-pressed={budget === preset} onClick={() => setBudget(preset)} key={preset}>{preset >= 1000 ? `$${preset / 1000}K` : money(preset)}</button>)}</div><small>미국 상장 종목 기준이며 세금·환전비용은 포함하지 않습니다.</small></div>
+          <div className="control-block"><label htmlFor="budget">전체 예산 · USD</label><form onSubmit={(event) => { event.preventDefault(); const next = parseBudgetInput(budgetDraft); if (next == null) { setBudgetError('$100~$100,000,000 범위의 금액을 입력하세요.'); return; } setBudget(next); setBudgetError(''); }}><div className="budget-submit"><div className="money-input"><span>$</span><Input id="budget" type="text" inputMode="decimal" value={budgetDraft} onChange={(event) => { setBudgetDraft(event.target.value); setBudgetError(''); }} aria-invalid={Boolean(budgetError)} aria-describedby={budgetError ? 'budget-error' : 'budget-help'} placeholder="예: 12,500" /></div><button type="submit">계산하기</button></div></form><div className="budget-presets" aria-label="예산 빠른 선택">{budgetPresets.map((preset) => <button type="button" aria-pressed={budget === preset && parseBudgetInput(budgetDraft) === preset} onClick={() => { setBudget(preset); setBudgetDraft(String(preset)); setBudgetError(''); }} key={preset}>{preset >= 1000 ? `$${preset / 1000}K` : money(preset)}</button>)}</div>{budgetError ? <span id="budget-error" className="budget-error" role="alert">{budgetError}</span> : <span className="budget-applied" aria-live="polite">계산된 예산: {money(budget)}</span>}<small id="budget-help">임의의 금액을 직접 입력하고 계산하기를 누르세요. 미국 상장 종목 기준이며 세금·환전비용은 포함하지 않습니다.</small></div>
           <div className="control-block"><label htmlFor="portfolio-source">포트폴리오 기준</label><Select value={sourceId} onValueChange={(value) => setSourceId(String(value))}><SelectTrigger id="portfolio-source" className="allocation-select"><SelectValue /></SelectTrigger><SelectContent><SelectGroup><SelectLabel>레짐 모델</SelectLabel><SelectItem value="regime">현재 레짐 컨센서스 · {data.regime.label}</SelectItem></SelectGroup><SelectGroup><SelectLabel>거장 포트폴리오 복제</SelectLabel>{data.investors.filter((item) => item.calculator.length).map((item) => <SelectItem key={item.id} value={item.id}>{item.representative} · {item.manager}</SelectItem>)}</SelectGroup></SelectContent></Select><small>{isRegime ? '복수의 퀄리티·가치 운용사가 동시에 보유한 종목을 결합합니다.' : `${selectedInvestor?.portfolioDate} 13F 상위 매핑 종목을 비중대로 복제합니다.`}</small></div>
           <div className="allocation-flow"><span>예산</span><ArrowRight size={16} /><span>{isRegime ? `${data.regime.label} 노출 ${percent(exposure)}` : selectedInvestor?.styleLabel}</span><ArrowRight size={16} /><strong>{allocation.rows.length}개 주문</strong></div>
         </div>
