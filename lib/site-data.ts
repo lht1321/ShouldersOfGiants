@@ -11,6 +11,8 @@ export const investorDirectory = siteData.investors.map((investor) => ({
   marketCagr: investor.metrics.marketCagr,
   sharpe: investor.metrics.sharpe,
   maxDrawdown: investor.metrics.maxDrawdown,
+  positionCount: investor.positionCount,
+  turnover: investor.metrics.turnover,
 }));
 
 export function getInvestor(id: string) {

@@ -6,6 +6,8 @@ export type InvestorDirectoryEntry = {
   marketCagr: number | null;
   sharpe: number | null;
   maxDrawdown: number | null;
+  positionCount?: number;
+  turnover?: number | null;
 };
 
 export const investorSortLabels = {
@@ -14,6 +16,8 @@ export const investorSortLabels = {
   excess: '시장 초과수익 높은순',
   sharpe: '샤프지수 높은순',
   drawdown: '최대 낙폭 낮은순',
+  positions: '보유 종목 많은순',
+  turnover: '회전율 낮은순',
 } as const;
 
 export type InvestorSort = keyof typeof investorSortLabels;
@@ -24,10 +28,18 @@ function compareDescending(left: number | null, right: number | null) {
   return right - left;
 }
 
+function compareAscending(left: number | null, right: number | null) {
+  if (left == null) return right == null ? 0 : 1;
+  if (right == null) return -1;
+  return left - right;
+}
+
 export function findInvestors(investors: InvestorDirectoryEntry[], query: string, sort: InvestorSort) {
   const needle = query.trim().toLocaleLowerCase();
   return investors.filter((item) => `${item.representative} ${item.manager}`.toLocaleLowerCase().includes(needle)).sort((left, right) => {
     if (sort === 'name') return left.representative.localeCompare(right.representative);
+    if (sort === 'positions') return compareDescending(left.positionCount ?? null, right.positionCount ?? null) || left.representative.localeCompare(right.representative);
+    if (sort === 'turnover') return compareAscending(left.turnover ?? null, right.turnover ?? null) || left.representative.localeCompare(right.representative);
     const metric = (item: InvestorDirectoryEntry) => {
       if (sort === 'excess') return item.cagr == null || item.marketCagr == null ? null : item.cagr - item.marketCagr;
       if (sort === 'drawdown') return item.maxDrawdown;

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, CircleMinus, CirclePlus, SearchCheck } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InvestorPicker } from '@/components/investor-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { filterPositionChanges, summarizePositionChanges, type PositionChangeFilter } from '@/lib/position-changes';
 import type { PositionChange, SiteData } from '@/lib/types';
@@ -38,8 +38,10 @@ export function ChangesExplorer({ data }: { data: SiteData }) {
     <div className="page-shell changes-shell">
       <header className="page-heading changes-heading">
         <div><p className="eyebrow">POSITION CHANGE LAB</p><h1>직전 분기, 무엇이 달라졌나</h1><p>주식 수 변화와 포트폴리오 비중 변화를 분리해 보고, 가능한 의사결정 배경을 데이터로 추정합니다.</p></div>
-        <div className="changes-selector"><label htmlFor="changes-investor">분석할 투자자</label><Select value={selectedId} onValueChange={(value) => setSelectedId(String(value))}><SelectTrigger id="changes-investor"><SelectValue /></SelectTrigger><SelectContent>{candidates.map((item) => <SelectItem value={item.id} key={item.id}>{item.representative} · {item.manager}</SelectItem>)}</SelectContent></Select><small>{investor.previousPortfolioDate} → {investor.portfolioDate}</small></div>
+        <div className="changes-selector"><span>분석 중인 투자자</span><strong>{investor.representative}</strong><small>{investor.previousPortfolioDate} → {investor.portfolioDate}</small></div>
       </header>
+
+      <InvestorPicker investors={candidates} selectedId={selectedId} onSelect={setSelectedId} idPrefix="changes-investor" />
 
       <section className="change-summary">
         <div className="change-identity"><span>{investor.styleLabel}</span><h2>{investor.representative}</h2><p>{investor.manager}</p></div>

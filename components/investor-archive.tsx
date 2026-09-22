@@ -79,7 +79,7 @@ export function InvestorArchive({ data }: { data: SiteData }) {
             </SelectContent>
           </Select>
           <Select value={sort} onValueChange={(value) => setSort(String(value) as SortKey)}>
-            <SelectTrigger className="archive-select" aria-label="투자자 정렬"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="archive-select" aria-label="투자자 정렬"><SelectValue>{sortLabels[sort]}</SelectValue></SelectTrigger>
             <SelectContent>
               {Object.entries(sortLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
             </SelectContent>

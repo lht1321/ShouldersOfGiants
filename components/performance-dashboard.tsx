@@ -13,15 +13,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { SiteData } from '@/lib/types';
 import { InvestorPortrait } from '@/components/investor-portrait';
+import { InvestorPicker } from '@/components/investor-picker';
 
 const portfolioColors = ['#24527a', '#2f6f62', '#9a6a1f', '#66798a', '#8293a1', '#9faeb9', '#b9c4cc', '#d0d8de', '#e2e7eb'];
 
@@ -67,21 +61,14 @@ export function PerformanceDashboard({ data }: { data: SiteData }) {
         </div>
       </section>
 
+      <InvestorPicker investors={data.investors} selectedId={selectedId} onSelect={setSelectedId} idPrefix="performance-investor" />
+
       <section className="investor-strip" aria-label="선택한 투자자">
         <InvestorPortrait name={investor.representative} styleLabel={investor.styleLabel} src={investor.illustration} subject={investor.illustrationSubject} width={150} height={150} priority />
         <div className="investor-copy">
           <p>{investor.manager.toUpperCase()}</p>
           <h2>{investor.representative}</h2>
           <div className="tag-row"><span>{investor.styleLabel}</span>{investor.principles.slice(0, 2).map((tag) => <span key={tag}>{tag}</span>)}</div>
-        </div>
-        <div className="investor-select">
-          <label htmlFor="investor-picker">분석할 투자자 · {data.investorCount}명</label>
-          <Select value={selectedId} onValueChange={(value) => setSelectedId(String(value))}>
-            <SelectTrigger id="investor-picker" className="w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {data.investors.map((item) => <SelectItem value={item.id} key={item.id}>{item.representative} · {item.manager}</SelectItem>)}
-            </SelectContent>
-          </Select>
         </div>
       </section>
 

@@ -38,6 +38,8 @@ export function SiteHeader({ investors }: { investors: InvestorDirectoryEntry[] 
   const [sort, setSort] = useState<InvestorSort>('cagr');
   const matches = useMemo(() => findInvestors(investors, query, sort), [investors, query, sort]);
   const metricText = (investor: InvestorDirectoryEntry) => {
+    if (sort === 'positions') return `${investor.positionCount ?? '—'}개`;
+    if (sort === 'turnover') return investor.turnover == null ? '—' : `${(investor.turnover * 100).toFixed(1)}%`;
     const value = sort === 'excess' ? investor.cagr == null || investor.marketCagr == null ? null : investor.cagr - investor.marketCagr : sort === 'drawdown' ? investor.maxDrawdown : sort === 'sharpe' ? investor.sharpe : investor.cagr;
     return value == null ? '—' : sort === 'sharpe' ? value.toFixed(2) : `${(value * 100).toFixed(1)}%`;
   };
@@ -59,7 +61,7 @@ export function SiteHeader({ investors }: { investors: InvestorDirectoryEntry[] 
             <label htmlFor="global-investor-search">투자자 또는 운용사 검색</label>
             <Input id="global-investor-search" type="search" aria-label="투자자 또는 운용사 검색" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="이름 또는 운용사" />
             <Select value={sort} onValueChange={(value) => setSort(value as InvestorSort)}>
-              <SelectTrigger aria-label="검색 결과 정렬"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="검색 결과 정렬"><SelectValue>{investorSortLabels[sort]}</SelectValue></SelectTrigger>
               <SelectContent>{Object.entries(investorSortLabels).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
