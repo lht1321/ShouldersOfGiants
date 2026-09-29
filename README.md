@@ -71,7 +71,7 @@ Shoulders of Giants는 공개된 SEC Form 13F 자료를 바탕으로 투자자�
 **Node.js 22.13.0 이상**과 npm이 필요합니다.
 
 ```bash
-git clone https://github.com/lht1321-netizen/ShouldersOfGiants.git
+git clone https://github.com/lht1321/ShouldersOfGiants.git
 cd ShouldersOfGiants
 npm ci
 npm run dev
